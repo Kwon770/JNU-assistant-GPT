@@ -1,5 +1,4 @@
 from flask import Flask, request
-
 app = Flask(__name__)
 
 import os
@@ -31,6 +30,6 @@ def transcribe_audio():
     return transcription
 
 if __name__ == '__main__':
-    print("OPENAI_API_KEY : ", end = ' ' )
-    print(os.environ["OPENAI_API_KEY"])
-    # app.run()
+    # print("OPENAI_API_KEY : ", end = ' ' )
+    # print(os.environ["OPENAI_API_KEY"])
+    app.run()

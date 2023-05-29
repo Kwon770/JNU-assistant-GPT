@@ -1,3 +1,6 @@
+from flask import Flask, request
+app = Flask(__name__)
+
 import ast
 import openai
 import pandas as pd
@@ -25,3 +28,8 @@ response = openai.ChatCompletion.create(
 )
 
 print(response['choices'][0]['message']['content'])
+
+if __name__ == '__main__':
+    # print("OPENAI_API_KEY : ", end = ' ' )
+    # print(os.environ["OPENAI_API_KEY"])
+    app.run()
