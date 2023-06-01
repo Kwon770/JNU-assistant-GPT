@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/JNUAssistantGPT.iml" filepath="$PROJECT_DIR$/.idea/JNUAssistantGPT.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/JNU-assistant-GPT.iml" filepath="$PROJECT_DIR$/.idea/JNU-assistant-GPT.iml" />
     </modules>
   </component>
 </project>
