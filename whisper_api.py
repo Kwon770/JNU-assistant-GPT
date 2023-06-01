@@ -34,8 +34,7 @@ def transcribe_audio():
     # Return the transcribed text as the API response
     return transcription
 
-
-if __name__ == "__main__":
-    print("OPENAI_API_KEY : ", end=" ")
-    print(os.environ["OPENAI_API_KEY"])
+if __name__ == '__main__':
+    # print("OPENAI_API_KEY : ", end = ' ' )
+    # print(os.environ["OPENAI_API_KEY"])
     app.run()
