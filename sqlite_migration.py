@@ -17,9 +17,8 @@ from scipy import spatial  # for calculating vector similarities for search
 from dotenv import load_dotenv
 load_dotenv()
 
-openai.api_key = "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"
 # print(os.environ["OPENAI_API_KEY"])
-# openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
