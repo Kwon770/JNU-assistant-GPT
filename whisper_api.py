@@ -17,7 +17,7 @@ db_connection = sqlite3.connect('board_data.db')
 r = redis.Redis(host='localhost', port=6379, db=0)
 
 # Connect to the database file
-conn = sqlite3.connect('board_data.db')
+conn = sqlite3.connect('board_data.db.db')
 
 # Create a cursor object to execute SQL queries
 cursor = conn.cursor()
