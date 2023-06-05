@@ -1,9 +1,10 @@
 from flask import Flask, request
-from flask_cors import CORS, cross_origin
+# from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
-CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
-
+# CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
+import struct
+import redis
 import ast
 import openai
 import pandas as pd
@@ -26,13 +27,26 @@ def retrieve_posts_df(
 ):
     # load a df
     # (( example csv ))
+
     embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
     df = pd.read_csv(embeddings_path)
     # (( TODO : Load the df from Redis ))
 
+    # redis deSerialized
+    data = []
+    r = redis.Redis(host='localhost', port=6379, db=0)
+    for i in range(1489):
+        bytes_of_values = r.hget(i, 'embedding')
+        embedding_vector = struct.unpack('f' * (len(bytes_of_values) // 4), bytes_of_values)
+        data.append(embedding_vector)
+
+    # array = np.array(data)
+
+    df = pd.DataFrame({'embedding': data})
+
     # convert embeddings from CSV str type back to list type
     # the dataframe has two columns: "text" and "embedding"
-    df['embedding'] = df['embedding'].apply(ast.literal_eval)
+    # df['embedding'] = df['embedding'].apply(ast.literal_eval)
 
     return df
 
