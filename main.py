@@ -112,10 +112,11 @@ def transcribe_audio():
         return "No file found in the request"
 
     audio_file = request.files["file"]
-    audio_data = audio_file.read()
+    audio_file.save('./text.mpeg')
+    audio_saved_file = open('text.mpeg', 'rb')
 
     # Make a request to the Whisper API
-    response = openai.Audio.transcribe("whisper-1", audio_data)
+    response = openai.Audio.transcribe("whisper-1", audio_saved_file, language='ko')
 
     # Get the transcribed text from the response
     transcription = response["text"]
