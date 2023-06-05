@@ -22,6 +22,26 @@ EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
 
 
+def get_redis_by_board_type(board_type):
+    # Redis 클라이언트 생성
+    r = redis.Redis(host='localhost', port=6379)
+
+    # Redis에서 모든 해시 조회
+    all_keys = r.keys("*")
+
+    # board_type 값이 일치하는 해시 필터링
+    filtered_keys = [key for key in all_keys if r.hget(key, "board_type").decode("utf-8") == board_type]
+
+    # 데이터프레임 생성
+    data = []
+    for key in filtered_keys:
+        hash_data = r.hgetall(key)
+        hash_data = {field.decode("utf-8", errors="ignore"): value.decode("utf-8", errors="ignore") for field, value in
+                     hash_data.items()}
+        data.append(hash_data)
+    return pd.DataFrame(data)
+
+
 def retrieve_posts_df(
         board_type: str
 ):
@@ -37,12 +57,16 @@ def retrieve_posts_df(
     r = redis.Redis(host='localhost', port=6379, db=0)
     for i in range(1489):
         bytes_of_values = r.hget(i, 'embedding')
+        bytes_of_file = r.hget(i,'data')
+
         embedding_vector = struct.unpack('f' * (len(bytes_of_values) // 4), bytes_of_values)
+
         data.append(embedding_vector)
 
     # array = np.array(data)
 
-    df = pd.DataFrame({'embedding': data})
+    df = pd.DataFrame({'embedding': data,
+                       'text': bytes_of_file})
 
     # convert embeddings from CSV str type back to list type
     # the dataframe has two columns: "text" and "embedding"
