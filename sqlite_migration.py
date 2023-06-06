@@ -13,13 +13,11 @@ import pandas as pd  # for storing text and embeddings data
 import tiktoken  # for counting tokens
 from scipy import spatial  # for calculating vector similarities for search
 
-# openai.api_key = os.environ["OPENAI_API_KEY"]
 from dotenv import load_dotenv
 load_dotenv()
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 # print(os.environ["OPENAI_API_KEY"])
-# openai.api_key = os.getenv('OPENAI_API_KEY')
 
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"

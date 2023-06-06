@@ -1,8 +1,8 @@
 from flask import Flask, request
-# from flask_cors import CORS, cross_origin
+from flask_cors import CORS, cross_origin
 
 app = Flask(__name__)
-# CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
+CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
 import struct
 import redis
 import ast
@@ -30,7 +30,7 @@ def retrieve_posts_df(
 
     embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
     df = pd.read_csv(embeddings_path)
-    # (( TODO : Load the df from Redis ))
+    # TODO: Load the df from Redis
 
     # redis deSerialized
     data = []
