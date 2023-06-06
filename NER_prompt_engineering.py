@@ -42,8 +42,9 @@ if __name__ == '__main__':
         time_query = "업로드날짜: " + time_format.replace('-', '.')
     else:
         dates = pd.date_range(period[0], period[1], freq='D')
+
         for date in dates:
-            time_query += "업로드날짜: " + date.strftime('%Y-%m-%d') + "\n"
+            time_query += "업로드날짜: " + date.strftime('%Y.%m.%d') + "\n"
     print(time_query)
 
 
