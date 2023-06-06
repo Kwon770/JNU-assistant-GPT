@@ -8,6 +8,7 @@ import redis
 import ast
 import openai
 import pandas as pd
+import pickle
 from scipy import spatial
 import os
 
@@ -18,7 +19,8 @@ from NER_prompt_engineering import ner_prompt
 load_dotenv()
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.api_key = os.getenv('OPENAI_API_KEY')
+# openai.api_key = os.getenv('OPENAI_API_KEY')
+openai.api_key = "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"
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
@@ -86,21 +88,39 @@ def search_posts_ranked_by_relatedness(
         relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y),
 ) -> tuple[list[str], list[float]]:
     df = retrieve_posts_df(board_type)
-
     question_embedding_response = openai.Embedding.create(
         model=EMBEDDING_MODEL,
         input=question,
     )
     question_embedding = question_embedding_response["data"][0]["embedding"]
+    #
+    # for i, row in df.iterrows():
+    #     print(type(row[0]))
+        # print("i : ", i, "a_index : ", a)
 
     posts_and_relatednesses = [
-        (row["text"], relatedness_fn(question_embedding, row["embedding"]))
+        (row["text"], relatedness_fn(question_embedding, row[0]))
         for i, row in df.iterrows()
     ]
+
+    # 역직렬화 확인
     posts_and_relatednesses.sort(key=lambda x: x[1], reverse=True)
+    # print("posts_and",posts_and_relatednesses)
     posts, relatednesses = zip(*posts_and_relatednesses)
 
-    return posts[:top_n], relatednesses[:top_n]
+    # post 역직렬화
+    data = []
+    # print("str: ",str(posts))
+    # a = pickle.loads(bytes(posts))
+    # print("에이! :", a)
+
+    # for i in posts:
+    #     print("size : ", len(i))
+    #     a = pickle.loads(bytes(i))
+    #     print("data : ", a)
+    #     data.append(a)
+
+    return data[:top_n], relatednesses[:top_n]
 
 
 def ask_based_on_posts(
@@ -115,6 +135,7 @@ def ask_based_on_posts(
     
     질문: {question}"""
 
+    print("question : ",question)
     time_query = ner_prompt(question)
     print(query + "\n 업로드날짜: " + time_query)
     response = openai.ChatCompletion.create(
@@ -127,10 +148,9 @@ def ask_based_on_posts(
     )
 
     # debug
-    print(response)
+    print("ask_based_on_posts 개수! : " , len(response))
 
     return response['choices'][0]['message']['content']
-
 
 @app.route('/ask', methods=['GET'])
 def search_and_ask():
@@ -143,6 +163,8 @@ def search_and_ask():
         board_type=board_type,
         top_n=top_n
     )
+
+    print("route layer 개수 : ", len(posts))
     return ask_based_on_posts(
         question=question,
         related_posts=posts
