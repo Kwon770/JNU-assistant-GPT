@@ -12,11 +12,13 @@ from scipy import spatial
 import os
 
 from dotenv import load_dotenv
+
+from NER_prompt_engineering import ner_prompt
+
 load_dotenv()
 
 # openai.api_key = os.environ["OPENAI_API_KEY"]
 openai.api_key = os.getenv('OPENAI_API_KEY')
-
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
@@ -109,18 +111,21 @@ def ask_based_on_posts(
     nnl = "\n\n"
     query = f"""아래는 2018년부터 2023년에 업로드된 전남대학교 게시글들을 질문의 답변에 사용해라. 만약 답변을 찾을 수 없다면, "업로드된 공지글이 없습니다"라고 써라.
     
-{nnl.join([f"게시글{index}: {nl}{post} " for index, post in enumerate(related_posts)])}    
+    {nnl.join([f"게시글{index}: {nl}{post} " for index, post in enumerate(related_posts)])}    
+    
+    질문: {question}"""
 
-질문: {question}"""
-
+    time_query = ner_prompt(question)
+    print(query + "\n 업로드날짜: " + time_query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
-            {'role': 'user', 'content': query},
+            {'role': 'user', 'content': query + "\n 업로드날짜: " + time_query},
         ],
         model=GPT_MODEL,
         temperature=0,
     )
+
     # debug
     print(response)
 
