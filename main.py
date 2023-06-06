@@ -12,14 +12,36 @@ from scipy import spatial
 import os
 
 from dotenv import load_dotenv
+
+from NER_prompt_engineering import ner_prompt
+
 load_dotenv()
 
-# openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.api_key = os.getenv('OPENAI_API_KEY')
-
+openai.api_key = os.environ["OPENAI_API_KEY"]
+# openai.api_key = os.getenv('OPENAI_API_KEY')
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
+
+
+def get_redis_by_board_type(board_type):
+    # Redis 클라이언트 생성
+    r = redis.Redis(host='localhost', port=6379)
+
+    # Redis에서 모든 해시 조회
+    all_keys = r.keys("*")
+
+    # board_type 값이 일치하는 해시 필터링
+    filtered_keys = [key for key in all_keys if r.hget(key, "board_type").decode("utf-8") == board_type]
+
+    # 데이터프레임 생성
+    data = []
+    for key in filtered_keys:
+        hash_data = r.hgetall(key)
+        hash_data = {field.decode("utf-8", errors="ignore"): value.decode("utf-8", errors="ignore") for field, value in
+                     hash_data.items()}
+        data.append(hash_data)
+    return pd.DataFrame(data)
 
 
 def retrieve_posts_df(
@@ -28,8 +50,8 @@ def retrieve_posts_df(
     # load a df
     # (( example csv ))
 
-    embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
-    df = pd.read_csv(embeddings_path)
+    # embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
+    # df = pd.read_csv(embeddings_path)
     # TODO: Load the df from Redis
 
     # redis deSerialized
@@ -37,12 +59,16 @@ def retrieve_posts_df(
     r = redis.Redis(host='localhost', port=6379, db=0)
     for i in range(1489):
         bytes_of_values = r.hget(i, 'embedding')
+        bytes_of_file = r.hget(i,'data')
+
         embedding_vector = struct.unpack('f' * (len(bytes_of_values) // 4), bytes_of_values)
+
         data.append(embedding_vector)
 
     # array = np.array(data)
 
-    df = pd.DataFrame({'embedding': data})
+    df = pd.DataFrame({'embedding': data,
+                       'text': bytes_of_file})
 
     # convert embeddings from CSV str type back to list type
     # the dataframe has two columns: "text" and "embedding"
@@ -85,18 +111,21 @@ def ask_based_on_posts(
     nnl = "\n\n"
     query = f"""아래는 2018년부터 2023년에 업로드된 전남대학교 게시글들을 질문의 답변에 사용해라. 만약 답변을 찾을 수 없다면, "업로드된 공지글이 없습니다"라고 써라.
     
-{nnl.join([f"게시글{index}: {nl}{post} " for index, post in enumerate(related_posts)])}    
+    {nnl.join([f"게시글{index}: {nl}{post} " for index, post in enumerate(related_posts)])}    
+    
+    질문: {question}"""
 
-질문: {question}"""
-
+    time_query = ner_prompt(question)
+    print(query + "\n 업로드날짜: " + time_query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
-            {'role': 'user', 'content': query},
+            {'role': 'user', 'content': query + "\n 업로드날짜: " + time_query},
         ],
         model=GPT_MODEL,
         temperature=0,
     )
+
     # debug
     print(response)
 
