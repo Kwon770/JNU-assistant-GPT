@@ -50,16 +50,16 @@ def retrieve_posts_df(
     # load a df
     # (( example csv ))
 
-    embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
-    df = pd.read_csv(embeddings_path)
-    # (( TODO : Load the df from Redis ))
+    # embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
+    # df = pd.read_csv(embeddings_path)
 
+    # (( TODO : Load the df from Redis ))
     # redis deSerialized
     data = []
     r = redis.Redis(host='localhost', port=6379, db=0)
     for i in range(1489):
         bytes_of_values = r.hget(i, 'embedding')
-        bytes_of_file = r.hget(i,'data')
+        bytes_of_file = r.hget(i,'text')
 
         embedding_vector = struct.unpack('f' * (len(bytes_of_values) // 4), bytes_of_values)
 
