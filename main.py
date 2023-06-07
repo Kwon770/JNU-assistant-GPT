@@ -95,6 +95,9 @@ def search_posts_ranked_by_relatedness(
     start = time()
     print("-----> search_posts_ranked_by_relatedness() 시작")
 
+    time_query = ner_prompt(question)
+    question += '\n' + time_query
+
     df = retrieve_posts_df(board_type)
     question_embedding_response = openai.Embedding.create(
         model=EMBEDDING_MODEL,
@@ -150,12 +153,11 @@ def ask_based_on_posts(
     질문: {question}"""
 
     # print("question : ",question)
-    time_query = ner_prompt(question)
     # print(query + "\n 업로드날짜: " + time_query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
-            {'role': 'user', 'content': query + "\n 업로드날짜: " + time_query},
+            {'role': 'user', 'content': query},
         ],
         model=GPT_MODEL,
         temperature=0,
@@ -179,7 +181,7 @@ def search_and_ask():
 
     question = request.args.get('question', type = str)
     board_type = request.args.get('board_type', type=str)
-    top_n = 2
+    top_n = 10
 
     posts, relatednesses = search_posts_ranked_by_relatedness(
         question=question,
