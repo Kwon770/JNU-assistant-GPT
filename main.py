@@ -8,8 +8,10 @@ import redis
 import ast
 import openai
 import pandas as pd
+import pickle
 from scipy import spatial
 import os
+import numpy as np
 
 from dotenv import load_dotenv
 
@@ -51,13 +53,12 @@ def retrieve_posts_df(
 ):
     # load a df
     # (( example csv ))
-
     # embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
     # df = pd.read_csv(embeddings_path)
 
-    # (( TODO : Load the df from Redis ))
     # redis deSerialized
     data = []
+    texts = []
     r = redis.Redis(host='localhost', port=6379, db=0)
     for i in range(1490):
         bytes_of_values = r.hget(i, 'embedding')
@@ -66,11 +67,10 @@ def retrieve_posts_df(
         embedding_vector = struct.unpack('f' * (len(bytes_of_values) // 4), bytes_of_values)
 
         data.append(embedding_vector)
-
-    # array = np.array(data)
+        texts.append(bytes_of_file)
 
     df = pd.DataFrame({'embedding': data,
-                       'text': bytes_of_file})
+                       'text': texts})
 
     # convert embeddings from CSV str type back to list type
     # the dataframe has two columns: "text" and "embedding"
@@ -88,21 +88,32 @@ def search_posts_ranked_by_relatedness(
         relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y),
 ) -> tuple[list[str], list[float]]:
     df = retrieve_posts_df(board_type)
-
     question_embedding_response = openai.Embedding.create(
         model=EMBEDDING_MODEL,
         input=question,
     )
     question_embedding = question_embedding_response["data"][0]["embedding"]
+    #
+    # for i, row in df.iterrows():
+    #     print(type(row[0]))
+        # print("i : ", i, "a_index : ", a)
 
     posts_and_relatednesses = [
-        (row["text"], relatedness_fn(question_embedding, row["embedding"]))
+        (row["text"], relatedness_fn(question_embedding, row['embedding']))
         for i, row in df.iterrows()
     ]
+    
+    # 역직렬화 확인
     posts_and_relatednesses.sort(key=lambda x: x[1], reverse=True)
     posts, relatednesses = zip(*posts_and_relatednesses)
 
-    return posts[:top_n], relatednesses[:top_n]
+    # post 역직렬화
+    data = []
+    for post in posts[:top_n]:
+        dep = post.decode('utf-8')
+        data.append(dep)
+
+    return data, relatednesses[:top_n]
 
 
 def ask_based_on_posts(
@@ -117,6 +128,7 @@ def ask_based_on_posts(
     
     질문: {question}"""
 
+    print("question : ",question)
     time_query = ner_prompt(question)
     print(query + "\n 업로드날짜: " + time_query)
     response = openai.ChatCompletion.create(
@@ -128,23 +140,25 @@ def ask_based_on_posts(
         temperature=0,
     )
 
-    # debug
-    print(response)
+
+    # print("ask_based_on_posts 개수! : " , len(related_posts))
+    # print("ask_based_on_posts: " , related_posts)
 
     return response['choices'][0]['message']['content']
-
 
 @app.route('/ask', methods=['GET'])
 def search_and_ask():
     question = request.args.get('question', type = str)
     board_type = request.args.get('board_type', type=str)
-    top_n = 10
+    top_n = 2
 
     posts, relatednesses = search_posts_ranked_by_relatedness(
         question=question,
         board_type=board_type,
         top_n=top_n
     )
+
+    # print("route layer 개수 : ", len(posts))
     return ask_based_on_posts(
         question=question,
         related_posts=posts
