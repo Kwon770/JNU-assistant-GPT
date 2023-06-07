@@ -11,6 +11,9 @@ GPT_MODEL = "gpt-3.5-turbo"
 
 # if __name__ == '__main__':
 def ner_prompt(s):
+    start = time()
+    print("-----> ner_prompt() 시작")
+
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'assistant', 'content': '예를들어, "작년 여름에 어떤 공지사항이 올라왔어?"라는 문장에서 시간 표현은 "작년 여름" 이다'},
@@ -22,15 +25,16 @@ def ner_prompt(s):
 
     # print(response)
     # print("ner_prompt : ", response)
+    end = time()
+    print(f"-> 시간 표현 추출 GPT : {end - start} ms")
+    stamp = end
+
     time_expression = response['choices'][0]['message']['content'].split('"')
     if len(time_expression) <= 1:
         return ""
-    time_expression = time_expression[1]
-    print(time_expression)
-    
 
+    time_expression = time_expression[1]
     today_str = datetime.today().strftime('%Y년 %m월 %d일')
-    # time_expression = "작년 겨울"
 
     response = openai.ChatCompletion.create(
         messages=[
@@ -43,12 +47,13 @@ def ner_prompt(s):
         temperature=0,
     )
 
+    end = time()
+    print(f"-> 시간 계산 GPT : {end - stamp} ms")
+    stamp = end
 
     time_format = response['choices'][0]['message']['content'].split('"')[1]
-
-    print("time_format : ", time_format)
+    # print("time_format : ", time_format)
     # print(time_format)
-
     period = time_format.split('~')
 
     time_query = ""
@@ -59,7 +64,10 @@ def ner_prompt(s):
 
         for date in dates:
             time_query += "업로드날짜: " + date.strftime('%Y.%m.%d') + "\n"
+
+    end = time()
+    print(f"-----> ner_prompt() 종료 : {end - start} ms")
+
     return time_query
-    # print(time_query)
 
 
