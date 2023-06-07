@@ -18,6 +18,8 @@ from NER_prompt_engineering import ner_prompt
 load_dotenv()
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
+openai.organization = os.environ["OPENAI_ORGANIZATION"]
+
 # openai.api_key = os.getenv('OPENAI_API_KEY')
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"

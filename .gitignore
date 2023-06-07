@@ -1,3 +1,4 @@
 .env
 .idea
 text.mpeg
+__pycache__
