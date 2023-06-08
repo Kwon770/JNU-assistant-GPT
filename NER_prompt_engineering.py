@@ -2,8 +2,8 @@ import os
 import openai
 from datetime import datetime
 import pandas as pd
-
 from dotenv import load_dotenv
+
 load_dotenv()
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -11,6 +11,9 @@ GPT_MODEL = "gpt-3.5-turbo"
 
 # if __name__ == '__main__':
 def ner_prompt(s):
+    start = time()
+    print("-----> ner_prompt() 시작")
+
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'assistant', 'content': '예를들어, "작년 여름에 어떤 공지사항이 올라왔어?"라는 문장에서 시간 표현은 "작년 여름" 이다'},
@@ -22,15 +25,16 @@ def ner_prompt(s):
 
     # print(response)
     # print("ner_prompt : ", response)
+    end = time()
+    print(f"-> 시간 표현 추출 GPT : {end - start} ms")
+    stamp = end
+
     time_expression = response['choices'][0]['message']['content'].split('"')
     if len(time_expression) <= 1:
         return ""
-    time_expression = time_expression[1]
-    print(time_expression)
-    
 
+    time_expression = time_expression[1]
     today_str = datetime.today().strftime('%Y년 %m월 %d일')
-    # time_expression = "작년 겨울"
 
     response = openai.ChatCompletion.create(
         messages=[
@@ -43,23 +47,55 @@ def ner_prompt(s):
         temperature=0,
     )
 
+    end = time()
+    print(f"-> 시간 계산 GPT : {end - stamp} ms")
+    stamp = end
 
     time_format = response['choices'][0]['message']['content'].split('"')[1]
-
-    print("time_format : ", time_format)
+    # print("time_format : ", time_format)
     # print(time_format)
-
     period = time_format.split('~')
 
     time_query = ""
-    if len(period) == 1:
+    if len(period) == 1: # time_format 이 기간이 아니라면
         time_query = "업로드날짜: " + time_format.replace('-', '.')
-    else:
-        dates = pd.date_range(period[0], period[1], freq='D')
 
-        for date in dates:
-            time_query += "업로드날짜: " + date.strftime('%Y.%m.%d') + "\n"
+    else: # time_format 이 기간이라면
+        period_start = period[0].split('-')
+        period_end = period[1].split('-')
+
+        # 연단위 기간에서 쿼리 생성
+        if period_start[0] < period_end[0]:
+            period_start = pd.to_datetime(period[0])
+            period_end = pd.to_datetime(period[1]) + pd.DateOffset(years=1)
+            dates = pd.date_range(period_start, period_end, freq='Y')
+
+            for date in dates:
+                time_query += "업로드날짜: " + date.strftime('%Y.') + "\n"
+
+        # 달단위 기간에서 쿼리 생성
+        elif period_start[1] < period_end[1]:
+            period_start = pd.to_datetime(period[0])
+            period_end = pd.to_datetime(period[1]) + pd.DateOffset(months=1)
+            dates = pd.date_range(period_start, period_end, freq='M')
+
+            for date in dates:
+                time_query += "업로드날짜: " + date.strftime('%Y.%m') + "\n"
+
+        else:
+            dates = pd.date_range(period[0], period[1], freq='M')
+
+            for date in dates:
+                time_query += "업로드날짜: " + date.strftime('%Y.%m.%d') + "\n"
+
+
+    end = time()
+    print(f"-----> ner_prompt() 종료 : {end - start} ms")
+
     return time_query
-    # print(time_query)
 
 
+# if __name__ == '__main__':
+#     print(pd.to_datetime("2022-12-01"))
+#     print(pd.to_datetime("2022-12-01") + pd.DateOffset(months=1))
+#     print(pd.date_range("2022-12-01", "2023-12-15", freq='Y'));

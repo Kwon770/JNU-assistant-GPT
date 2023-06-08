@@ -2,8 +2,6 @@ from flask import Flask, request, send_file
 from flask_cors import CORS, cross_origin
 from navertts import NaverTTS
 
-app = Flask(__name__)
-CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
 import struct
 import redis
 import ast
@@ -13,17 +11,21 @@ import pickle
 from scipy import spatial
 import os
 import numpy as np
-
+from time import time
 from dotenv import load_dotenv
 
 from NER_prompt_engineering import ner_prompt
+import tiktokenCounter
+
+app = Flask(__name__)
+CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
 
 load_dotenv()
 
+# openai.api_key = os.getenv('OPENAI_API_KEY')
 openai.api_key = os.environ["OPENAI_API_KEY"]
 openai.organization = os.environ["OPENAI_ORGANIZATION"]
 
-# openai.api_key = os.getenv('OPENAI_API_KEY')
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
@@ -52,6 +54,8 @@ def get_redis_by_board_type(board_type):
 def retrieve_posts_df(
         board_type: str
 ):
+    start = time()
+
     # load a df
     # (( example csv ))
     # embeddings_path = "https://cdn.openai.com/API/examples/data/winter_olympics_2022.csv"
@@ -77,6 +81,9 @@ def retrieve_posts_df(
     # the dataframe has two columns: "text" and "embedding"
     # df['embedding'] = df['embedding'].apply(ast.literal_eval)
 
+    end = time()
+    print(f"-> retrieve_posts_df() [레디스로부터 게시글 불러오기]: {end - start} ms ")
+
     return df
 
 
@@ -88,13 +95,23 @@ def search_posts_ranked_by_relatedness(
         top_n: int,
         relatedness_fn=lambda x, y: 1 - spatial.distance.cosine(x, y),
 ) -> tuple[list[str], list[float]]:
+    start = time()
+    print("-----> search_posts_ranked_by_relatedness() 시작")
+
+    tiktokenCounter.clear()
+
+    time_query = ner_prompt(question)
+    question += '\n' + time_query
+
+    tiktokenCounter.append(tiktokenCounter.get_token_len(question))
+
     df = retrieve_posts_df(board_type)
     question_embedding_response = openai.Embedding.create(
         model=EMBEDDING_MODEL,
         input=question,
     )
     question_embedding = question_embedding_response["data"][0]["embedding"]
-    #
+
     # for i, row in df.iterrows():
     #     print(type(row[0]))
         # print("i : ", i, "a_index : ", a)
@@ -103,16 +120,30 @@ def search_posts_ranked_by_relatedness(
         (row["text"], relatedness_fn(question_embedding, row['embedding']))
         for i, row in df.iterrows()
     ]
-    
-    # 역직렬화 확인
+
+    end = time()
+    print(f"-> 유사도 검색 : {end - start} ms ")
+    stamp = end
+
     posts_and_relatednesses.sort(key=lambda x: x[1], reverse=True)
     posts, relatednesses = zip(*posts_and_relatednesses)
 
     # post 역직렬화
     data = []
     for post in posts[:top_n]:
+        post_token_len = tiktokenCounter.get_token_len(post)
+        if not tiktokenCounter.is_appendable(post_token_len):
+            break
+
+        tiktokenCounter.append(post_token_len)
         dep = post.decode('utf-8')
         data.append(dep)
+
+    end = time()
+    print(f"-> 게시글 텍스트 역직렬화 : {stamp - end} ms")
+
+    end = time()
+    print(f"-----> search_posts_ranked_by_relatedness() 종료 : {end - start} ms ")
 
     return data, relatednesses[:top_n]
 
@@ -121,6 +152,9 @@ def ask_based_on_posts(
         question: str,
         related_posts: list[str]
 ):
+    start = time()
+    print("-----> ask_based_on_posts() 시작")
+
     nl = "\n"
     nnl = "\n\n"
     query = f"""아래는 2018년부터 2023년에 업로드된 전남대학교 게시글들을 질문의 답변에 사용해라. 만약 답변을 찾을 수 없다면, "업로드된 공지글이 없습니다"라고 써라.
@@ -129,29 +163,36 @@ def ask_based_on_posts(
     
     질문: {question}"""
 
-    print("question : ",question)
-    time_query = ner_prompt(question)
-    print(query + "\n 업로드날짜: " + time_query)
+    # print("question : ",question)
+    print("query : ", query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
-            {'role': 'user', 'content': query + "\n 업로드날짜: " + time_query},
+            {'role': 'user', 'content': query},
         ],
         model=GPT_MODEL,
         temperature=0,
     )
 
+    end = time()
+    print(f"-> 답변 생성 GPT : {end - start}")
+
 
     # print("ask_based_on_posts 개수! : " , len(related_posts))
     # print("ask_based_on_posts: " , related_posts)
+    end = time()
+    print(f"ask_based_on_posts() : {end - start} ms ")
 
     return response['choices'][0]['message']['content']
 
 @app.route('/ask', methods=['GET'])
 def search_and_ask():
+    start = time()
+    print("-----> search_and_ask() 시작")
+
     question = request.args.get('question', type = str)
     board_type = request.args.get('board_type', type=str)
-    top_n = 2
+    top_n = 9
 
     posts, relatednesses = search_posts_ranked_by_relatedness(
         question=question,
@@ -160,10 +201,15 @@ def search_and_ask():
     )
 
     # print("route layer 개수 : ", len(posts))
-    return ask_based_on_posts(
+    answer = ask_based_on_posts(
         question=question,
         related_posts=posts
     )
+
+    end = time()
+    print(f"-----> search_and_ask() 종료 : {end - start} ms ")
+
+    return answer
 
 @app.route("/transcribe", methods=["POST"])
 def transcribe_audio():
