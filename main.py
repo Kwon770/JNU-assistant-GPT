@@ -1,7 +1,5 @@
 from flask import Flask, request
 from flask_cors import CORS, cross_origin
-app = Flask(__name__)
-CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
 
 import struct
 import redis
@@ -16,13 +14,17 @@ from time import time
 from dotenv import load_dotenv
 
 from NER_prompt_engineering import ner_prompt
+import tiktokenCounter
+
+app = Flask(__name__)
+CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
 
 load_dotenv()
 
+# openai.api_key = os.getenv('OPENAI_API_KEY')
 openai.api_key = os.environ["OPENAI_API_KEY"]
 openai.organization = os.environ["OPENAI_ORGANIZATION"]
 
-# openai.api_key = os.getenv('OPENAI_API_KEY')
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
@@ -95,8 +97,12 @@ def search_posts_ranked_by_relatedness(
     start = time()
     print("-----> search_posts_ranked_by_relatedness() 시작")
 
+    tiktokenCounter.clear()
+
     time_query = ner_prompt(question)
     question += '\n' + time_query
+
+    tiktokenCounter.append(tiktokenCounter.get_token_len(question))
 
     df = retrieve_posts_df(board_type)
     question_embedding_response = openai.Embedding.create(
@@ -117,14 +123,18 @@ def search_posts_ranked_by_relatedness(
     end = time()
     print(f"-> 유사도 검색 : {end - start} ms ")
     stamp = end
-    
-    # 역직렬화 확인
+
     posts_and_relatednesses.sort(key=lambda x: x[1], reverse=True)
     posts, relatednesses = zip(*posts_and_relatednesses)
 
     # post 역직렬화
     data = []
     for post in posts[:top_n]:
+        post_token_len = tiktokenCounter.get_token_len(post)
+        if not tiktokenCounter.is_appendable(post_token_len):
+            break
+
+        tiktokenCounter.append(post_token_len)
         dep = post.decode('utf-8')
         data.append(dep)
 
@@ -181,7 +191,7 @@ def search_and_ask():
 
     question = request.args.get('question', type = str)
     board_type = request.args.get('board_type', type=str)
-    top_n = 10
+    top_n = 9
 
     posts, relatednesses = search_posts_ranked_by_relatedness(
         question=question,
