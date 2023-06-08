@@ -137,10 +137,13 @@ def search_posts_ranked_by_relatedness(
     end = time()
     print(f"-> 게시글 텍스트 역직렬화 : {stamp - end} ms")
 
+    print("-> 검색된 유사 게시글 개수 : " , len(data))
+    # print("ask_based_on_posts: " , related_posts)
+
     end = time()
     print(f"-----> search_posts_ranked_by_relatedness() 종료 : {end - start} ms ")
 
-    return data, relatednesses[:top_n]
+    return data, relatednesses[:len(data)]
 
 
 def ask_based_on_posts(
@@ -172,11 +175,8 @@ def ask_based_on_posts(
     end = time()
     print(f"-> 답변 생성 GPT : {end - start}")
 
-
-    # print("ask_based_on_posts 개수! : " , len(related_posts))
-    # print("ask_based_on_posts: " , related_posts)
     end = time()
-    print(f"ask_based_on_posts() : {end - start} ms ")
+    print(f"----> ask_based_on_posts() : {end - start} ms ")
 
     return response['choices'][0]['message']['content']
 
