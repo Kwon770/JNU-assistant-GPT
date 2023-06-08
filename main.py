@@ -98,11 +98,6 @@ def search_posts_ranked_by_relatedness(
     start = time()
     print("-----> search_posts_ranked_by_relatedness() 시작")
 
-    tiktokenCounter.clear()
-
-    time_query = ner_prompt(question)
-    question += '\n' + time_query
-
     tiktokenCounter.append(tiktokenCounter.get_token_len(question))
 
     df = retrieve_posts_df(board_type)
@@ -131,12 +126,12 @@ def search_posts_ranked_by_relatedness(
     # post 역직렬화
     data = []
     for post in posts[:top_n]:
-        post_token_len = tiktokenCounter.get_token_len(post)
+        dep = post.decode('utf-8')
+        post_token_len = tiktokenCounter.get_token_len(dep)
         if not tiktokenCounter.is_appendable(post_token_len):
             break
 
         tiktokenCounter.append(post_token_len)
-        dep = post.decode('utf-8')
         data.append(dep)
 
     end = time()
@@ -164,7 +159,7 @@ def ask_based_on_posts(
     질문: {question}"""
 
     # print("question : ",question)
-    print("query : ", query)
+    # print("query : ", query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
@@ -194,6 +189,11 @@ def search_and_ask():
     board_type = request.args.get('board_type', type=str)
     top_n = 9
 
+    tiktokenCounter.init()
+
+    time_query = ner_prompt(question)
+    question += '\n' + time_query
+
     posts, relatednesses = search_posts_ranked_by_relatedness(
         question=question,
         board_type=board_type,
@@ -208,6 +208,7 @@ def search_and_ask():
 
     end = time()
     print(f"-----> search_and_ask() 종료 : {end - start} ms ")
+
 
     return answer
 

@@ -29,7 +29,7 @@ def is_appendable(new_string_len: int):
 def append(new_string_len: int):
     global token_len
 
-    print("TOKEN APPEND  ", token_len, new_string_len, token_len+new_string_len)
+    # print("TOKEN APPEND  ", token_len, new_string_len, token_len+new_string_len)
     token_len += new_string_len
 
 

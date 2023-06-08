@@ -2,6 +2,7 @@ import os
 import openai
 from datetime import datetime
 import pandas as pd
+from time import time
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -16,6 +17,7 @@ def ner_prompt(s):
 
     response = openai.ChatCompletion.create(
         messages=[
+            {'role': 'assistant', 'content': '예를들어, "작년 카카오테크캠퍼스에 대해서 알려줘"라는 문장에서 시간 표현은 "작년" 이다'},
             {'role': 'assistant', 'content': '예를들어, "작년 여름에 어떤 공지사항이 올라왔어?"라는 문장에서 시간 표현은 "작년 여름" 이다'},
             {'role': 'user', 'content': f'다음 문장에 시간 표현 하나만 추출해줘. "{s}" '},
         ],
@@ -23,14 +25,15 @@ def ner_prompt(s):
         temperature=0,
     )
 
-    # print(response)
     # print("ner_prompt : ", response)
     end = time()
     print(f"-> 시간 표현 추출 GPT : {end - start} ms")
     stamp = end
 
     time_expression = response['choices'][0]['message']['content'].split('"')
+    # print(s, time_expression)
     if len(time_expression) <= 1:
+        print("-> 시간 표현이 존재하지 않음.")
         return ""
 
     time_expression = time_expression[1]
@@ -39,8 +42,9 @@ def ner_prompt(s):
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '주어진 오늘 날짜를 기준으로 시간 변화량만큼 바뀐 날짜를 계산해라.'},
-            {'role': 'assistant', 'content': '예를들어, 오늘이 2023년 6월 6월일 때, 어제의 datetime을 "YYYY-mm-dd"형식으로 바꾸면, "2023-06-05"다 '},
-            {'role': 'assistant', 'content': '예를들어, 오늘이 2023년 6월 6월일 때, 작년 여름의 datetime을 "YYYY-mm-dd~YYYY-mm-dd"형식으로 바꾸면, "2022-06-01~2022-08-31"다 '},
+            {'role': 'assistant', 'content': '예를들어, 오늘이 2023년 6월 6월일 때, 어제의 datetime은 "2023-06-05"다 '},
+            {'role': 'assistant', 'content': '예를들어, 오늘이 2023년 6월 6월일 때, 작년의 datetime은 "2022-01-01~2022-12-31"다 '},
+            {'role': 'assistant', 'content': '예를들어, 오늘이 2023년 6월 6월일 때, 작년 여름의 datetime은 "2022-06-01~2022-08-31"다 '},
             {'role': 'user', 'content': f'오늘은 {today_str}이야. {time_expression}의 datetime은 뭐니? 오직 "YYYY-mm-dd", "YYYY-mm-dd~YYYY-mm-dd"으로만 대답해줘.'},
         ],
         model=GPT_MODEL,
@@ -53,12 +57,12 @@ def ner_prompt(s):
 
     time_format = response['choices'][0]['message']['content'].split('"')[1]
     # print("time_format : ", time_format)
-    # print(time_format)
     period = time_format.split('~')
 
     time_query = ""
     if len(period) == 1: # time_format 이 기간이 아니라면
         time_query = "업로드날짜: " + time_format.replace('-', '.')
+        # print(f"date {time_query}")
 
     else: # time_format 이 기간이라면
         period_start = period[0].split('-')
@@ -72,6 +76,7 @@ def ner_prompt(s):
 
             for date in dates:
                 time_query += "업로드날짜: " + date.strftime('%Y.') + "\n"
+            # print(f"years {time_query}")
 
         # 달단위 기간에서 쿼리 생성
         elif period_start[1] < period_end[1]:
@@ -81,12 +86,14 @@ def ner_prompt(s):
 
             for date in dates:
                 time_query += "업로드날짜: " + date.strftime('%Y.%m') + "\n"
+            # print(f"months {time_query}")
 
         else:
             dates = pd.date_range(period[0], period[1], freq='M')
 
             for date in dates:
                 time_query += "업로드날짜: " + date.strftime('%Y.%m.%d') + "\n"
+            # print(f"days {time_query}")
 
 
     end = time()
