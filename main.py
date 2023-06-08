@@ -1,5 +1,6 @@
-from flask import Flask, request
+from flask import Flask, request, send_file
 from flask_cors import CORS, cross_origin
+from navertts import NaverTTS
 
 app = Flask(__name__)
 CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
@@ -182,6 +183,14 @@ def transcribe_audio():
 
     # Return the transcribed text as the API response
     return transcription
+
+@app.route('/tts', methods=['GET'])
+def tts():
+    text = request.args.get('text', type = str)
+    print("TTS:", text)
+    tts = NaverTTS(text)
+    tts.save('tts.mp3')
+    return send_file('tts.mp3')
 
 if __name__ == '__main__':
     from waitress import serve
