@@ -163,7 +163,7 @@ def ask_based_on_posts(
     질문: {question}"""
 
     # print("question : ",question)
-    # print(query + "\n 업로드날짜: " + time_query)
+    print("query : ", query)
     response = openai.ChatCompletion.create(
         messages=[
             {'role': 'system', 'content': '2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라.'},
