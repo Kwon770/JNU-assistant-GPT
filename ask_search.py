@@ -1,35 +1,21 @@
-from flask import Flask, request, send_file
-from flask_cors import CORS, cross_origin
-from navertts import NaverTTS
-
-import struct
-import redis
-import ast
 import openai
 import pandas as pd
-import pickle
-from scipy import spatial
 import os
-import numpy as np
+import redis
 from time import time
+from scipy import spatial
+import struct
 from dotenv import load_dotenv
-
 from NER_prompt_engineering import ner_prompt
 import tiktokenCounter
 
-app = Flask(__name__)
-CORS(app, resources={r'*': {'origins': ['http://localhost:5173']}})
-
 load_dotenv()
 
-# openai.api_key = os.getenv('OPENAI_API_KEY')
 openai.api_key = os.environ["OPENAI_API_KEY"]
-openai.organization = os.environ["OPENAI_ORGANIZATION"]
 
 # model
 EMBEDDING_MODEL = "text-embedding-ada-002"
 GPT_MODEL = "gpt-3.5-turbo"
-
 
 def get_redis_by_board_type(board_type):
     # Redis 클라이언트 생성
@@ -171,6 +157,7 @@ def ask_based_on_posts(
     {nnl.join(data)}
     
     질문: {question}"""
+    
 
     # print("question : ",question)
     # print("query : ", query)
@@ -191,13 +178,9 @@ def ask_based_on_posts(
 
     return response['choices'][0]['message']['content']
 
-@app.route('/ask', methods=['GET'])
-def search_and_ask():
+def search_and_ask(question, board_type):
     start = time()
     print("-----> search_and_ask() 시작")
-
-    question = request.args.get('question', type = str)
-    board_type = request.args.get('board_type', type=str)
     top_n = 9
 
     tiktokenCounter.init()
@@ -211,6 +194,8 @@ def search_and_ask():
         top_n=top_n
     )
 
+    tiktokenCounter.init()
+
     # print("route layer 개수 : ", len(posts))
     answer = ask_based_on_posts(
         question=question,
@@ -219,43 +204,6 @@ def search_and_ask():
 
     end = time()
     print(f"-----> search_and_ask() 종료 : {end - start} ms ")
-
-
-    return answer
-
-@app.route("/transcribe", methods=["POST"])
-def transcribe_audio():
-    # Check if the request contains a file
-    if "file" not in request.files:
-        return "No file found in the request"
-
-    audio_file = request.files["file"]
-    audio_file.save('./text.mpeg')
-    audio_saved_file = open('text.mpeg', 'rb')
-
-    # Make a request to the Whisper API
-    response = openai.Audio.transcribe("whisper-1", audio_saved_file, language='ko')
-
-    # Get the transcribed text from the response
-    transcription = response["text"]
-
-    # Return the transcribed text as the API response
-    return transcription
-
-@app.route('/tts', methods=['GET'])
-def tts():
-    text = request.args.get('text', type = str)
-    print("TTS:", text)
-    tts = NaverTTS(text)
-    tts.save('tts.mp3')
-    return send_file('tts.mp3')
-
-if __name__ == '__main__':
-    from waitress import serve
-    print('server open: 8080')
-    serve(app, host="0.0.0.0", port=8080)
-
-#     # examples
-#     posts, relatednesses = posts_ranked_by_relatedness("curling gold medal", top_n=5)
-#     for string, relatedness in zip(posts, relatednesses):
-#         print(f"{relatedness=:.3f}")
+    
+    result = [question, board_type, answer, end - start, time_query, posts, answer]
+    return result

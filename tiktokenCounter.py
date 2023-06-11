@@ -12,7 +12,7 @@ def init():
     # Chat API 기본 탬플릿 문자열의 토큰 수
     # "2018년부터 2023년에 업로드된 전남대학교 게시글들에 대한 질문에 답변해라."
     # "\n\n게시글9: \n"
-    token_len = 55
+    token_len = 200
 
 
 def get_token_len(string: str):

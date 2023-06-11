@@ -55,7 +55,10 @@ def ner_prompt(s):
     print(f"-> 시간 계산 GPT : {end - stamp} ms")
     stamp = end
 
-    time_format = response['choices'][0]['message']['content'].split('"')[1]
+    time_format = response['choices'][0]['message']['content'].split('"')
+    if len(time_format) == 1:
+        return ''
+    time_format = time_format[1]
     # print("time_format : ", time_format)
     period = time_format.split('~')
 
